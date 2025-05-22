@@ -3,7 +3,7 @@ plugins {
     id 'application'
 }
 
-group   = 'ar.edu.fiuba.ssshare'
+group   = 'ar.edu.itba.ssshare'
 version = '0.1.0-SNAPSHOT'
 
 java {
@@ -20,7 +20,7 @@ dependencies {
 }
 
 application {
-    mainClass = 'ar.edu.fiuba.ssshare.Main'
+    mainClass = 'ar.edu.itba.ssshare.Main'
 }
 
 test {
