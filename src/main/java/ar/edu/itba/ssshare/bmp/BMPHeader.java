@@ -22,6 +22,12 @@ public class BMPHeader {
         this.shareIndex = shareIndex;
     }
 
+    public int paletteSize(byte[] raw) {
+        int bpp = little16(raw, 28);
+        return (bpp <= 8) ? (1 << bpp) * 4 : 0;
+    }
+
+
     public static BMPHeader parse(byte[] raw) {
         // TODO: validar firma "BM", profundidad 8 bpp, sin compresión.
         int size  = little32(raw, 2);

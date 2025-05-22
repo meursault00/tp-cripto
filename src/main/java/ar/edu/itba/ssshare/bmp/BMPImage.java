@@ -27,7 +27,7 @@ public class BMPImage {
     public static BMPImage read(Path path) throws IOException {
         byte[] all = Files.readAllBytes(path);
         BMPHeader h = BMPHeader.parse(all);
-        byte[] pal = new byte[h.paletteSize()];
+        byte[] pal = new byte[h.paletteSize(all)];
         System.arraycopy(all, 54, pal, 0, pal.length);
         byte[] pix = new byte[all.length - h.pixelArrayOffset()];
         System.arraycopy(all, h.pixelArrayOffset(), pix, 0, pix.length);
