@@ -1,11 +1,19 @@
 package ar.edu.itba.ssshare;
 
-import java.util.HashMap;
-import java.util.Map;
+import ar.edu.itba.ssshare.scheme.SecretSharingScheme;
+import ar.edu.itba.ssshare.stego.LSBDecoder;
+import ar.edu.itba.ssshare.stego.LSBEncoder;
+
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.*;
 
 public class Main {
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws IOException {
         if (args.length == 0 || "-h".equals(args[0]) || "--help".equals(args[0])) {
             printHelp();
             return;
@@ -52,9 +60,9 @@ public class Main {
 
         // TODO: llamar funciones
         if (mode.equals("d")) {
-            // distribuir(secret, k, n, dir);
+             distribuir(secret, k, n, dir); //-d -secret examples\secret\boca32x32.bmp -k 8 -n 8 -dir examples\portadoras
         } else {
-            // recuperar(secret, k, dir);
+             recuperar(secret, k, dir); //-r -secret examples\secret\recuperada.bmp -k 8  -dir examples\portadoras\
         }
     }
 
@@ -93,4 +101,58 @@ public class Main {
               visualSSS -r  -secret <out.bmp> -k <num> [-dir <path>]
             """);
     }
+
+    public static void distribuir(String secretPath, int k, int n, String dir) throws IOException {
+        byte[] secretData = Files.readAllBytes(Paths.get(secretPath)); // por ahora todo el archivo
+
+        List<byte[]> shadows = SecretSharingScheme.createShadows(secretData, k, n);
+
+        for (int i = 0; i < n; i++) {
+            Path carrierPath = Paths.get(dir, "c" + (i+1) + ".bmp");
+            byte[] carrier = Files.readAllBytes(carrierPath);
+
+            // Separar header y píxeles
+            int headerSize = 54; // BMP clásico
+            byte[] header = Arrays.copyOfRange(carrier, 0, headerSize);
+            byte[] pixels = Arrays.copyOfRange(carrier, headerSize, carrier.length);
+
+            // Ocultar sombra en píxeles
+            LSBEncoder.embed(pixels, shadows.get(i));
+
+            // Recombinar y guardar
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            out.write(header);
+            out.write(pixels);
+
+            Path outPath = Paths.get(dir, "sombra" + (i+1) + ".bmp");
+            Files.write(outPath, out.toByteArray());
+        }
+
+        System.out.println("Sombras embebidas en imágenes guardadas en " + dir);
+    }
+
+    public static void recuperar(String outputPath, int k, String dir) throws IOException {
+        List<byte[]> shadows = new ArrayList<>();
+
+        for (int i = 0; i < k; i++) {
+            Path path = Paths.get(dir, "sombra" + (i+1) + ".bmp");
+            byte[] data = Files.readAllBytes(path);
+
+            int headerSize = 54;
+            byte[] pixels = Arrays.copyOfRange(data, headerSize, data.length);
+
+            // Asumimos que todas las sombras tienen el mismo largo (por ejemplo 1024)
+            // Podés inferir esto o pasarlo como parámetro (más robusto)
+            int len = (data.length - headerSize) / 8; // o un valor fijo si conocés la longitud original
+
+            byte[] shadow = LSBDecoder.extract(pixels, len);
+            shadows.add(shadow);
+        }
+
+        byte[] secret = SecretSharingScheme.recoverSecret(shadows, k);
+        Files.write(Paths.get(outputPath), secret);
+        System.out.println("Secreto reconstruido guardado en " + outputPath);
+    }
+
+
 }

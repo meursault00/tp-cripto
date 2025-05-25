@@ -27,5 +27,45 @@ public final class SecretSharingScheme {
         return shadows;
     }
 
-    // TODO: recoverSecret(...)
+    public static byte[] recoverSecret(List<byte[]> shadows, int k) {
+        if (shadows.size() < k)
+            throw new IllegalArgumentException("Se necesitan al menos k sombras");
+
+        int blocks = shadows.get(0).length;
+        byte[] secret = new byte[blocks * k];
+
+        for (int b = 0; b < blocks; b++) {
+            int[] x = new int[k];
+            int[] y = new int[k];
+            for (int i = 0; i < k; i++) {
+                x[i] = i + 1; // x_i = 1..k (mismo que en distribución)
+                y[i] = Byte.toUnsignedInt(shadows.get(i)[b]);
+            }
+
+            // Interpolar en x=0 para obtener los k coeficientes originales
+            for (int j = 0; j < k; j++) {
+                int[] shiftedY = new int[k];
+                for (int m = 0; m < k; m++) {
+                    // Evaluar en x=0 del polinomio multiplicado por x^j
+                    shiftedY[m] = (y[m] * pow(x[m], j)) % Polynomial.P;
+                }
+                int coeff = Lagrange.interpolateAtZero(x, shiftedY);
+                secret[b * k + j] = (byte) coeff;
+            }
+        }
+
+        return secret;
+    }
+
+    private static int pow(int base, int exp) {
+        long res = 1;
+        long b = base % Polynomial.P;
+        while (exp > 0) {
+            if ((exp & 1) == 1) res = (res * b) % Polynomial.P;
+            b = (b * b) % Polynomial.P;
+            exp >>= 1;
+        }
+        return (int) res;
+    }
+
 }
