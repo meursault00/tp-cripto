@@ -7,3 +7,8 @@ para BMP 8 bpp.
 # compilar y correr
 ./gradlew build
 ./gradlew run --args="-h"
+
+
+-d -secret examples\secret\boca.bmp -k 8 -n 8 -dir examples\portadoras
+
+-r -secret examples\secret\recuperada.bmp -k 8  -dir examples\portadoras
