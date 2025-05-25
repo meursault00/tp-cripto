@@ -110,13 +110,12 @@ public class Main {
         byte[] dataToHide = Arrays.copyOfRange(secretData, HEADER_SIZE_AND_PALETTE, secretData.length);
 
 
-
         List<byte[]> shadows = SecretSharingScheme.createShadows(dataToHide, k, n);
 
 
         int acum =0;
         for (int i = 0; i < n; i++) {
-            Path carrierPath = Paths.get(dir, "c" + (i+1) + ".bmp");
+            Path carrierPath = Paths.get(dir, "cover" + (i+1) + ".bmp");
             byte[] carrier = Files.readAllBytes(carrierPath);
 
             // Separar header y píxeles
@@ -136,7 +135,7 @@ public class Main {
             Files.write(outPath, out.toByteArray());
         }
 
-        System.out.println("total de pixeles de sombra"+acum);
+        System.out.println("total de pixeles de sombra" + acum);
 
         System.out.println("Sombras embebidas en imágenes guardadas en " + dir);
     }
@@ -148,21 +147,22 @@ public class Main {
             Path path = Paths.get(dir, "sombra" + (i + 1) + ".bmp");
             byte[] data = Files.readAllBytes(path);
 
-            int headerSize = 54;
-            byte[] pixels = Arrays.copyOfRange(data, headerSize, data.length);
+            byte[] pixels = Arrays.copyOfRange(data, HEADER_SIZE_AND_PALETTE, data.length);
 
-            int len = (data.length - headerSize) / 8;
+            int len = (data.length - HEADER_SIZE_AND_PALETTE) / 8;
             byte[] shadow = LSBDecoder.extract(pixels, len);
+
             shadows.add(shadow);
         }
 
         // Usamos una cover cualquiera para obtener el header BMP (todas tienen el mismo)
-        byte[] cover = Files.readAllBytes(Path.of("examples/portadoras/c2.bmp"));
+        byte[] cover = Files.readAllBytes(Path.of("examples/portadoras/cover1.bmp"));
         byte[] coverHeader = Arrays.copyOfRange(cover, 0, HEADER_SIZE_AND_PALETTE);
 
 
         // Recuperamos el secreto sin header
         byte[] secret = SecretSharingScheme.recoverSecret(shadows, k);
+        System.out.println(secret.length);
 
         // Le agregamos el header para que sea un BMP válido
         byte[] secretWithHeader = new byte[coverHeader.length + secret.length];
