@@ -115,7 +115,7 @@ public class Main {
 
         int acum =0;
         for (int i = 0; i < n; i++) {
-            Path carrierPath = Paths.get(dir, "cover" + (i+1) + ".bmp");
+            Path carrierPath = Paths.get(dir, "c" + (i+1) + ".bmp");
             byte[] carrier = Files.readAllBytes(carrierPath);
 
             // Separar header y píxeles
@@ -156,7 +156,7 @@ public class Main {
         }
 
         // Usamos una cover cualquiera para obtener el header BMP (todas tienen el mismo)
-        byte[] cover = Files.readAllBytes(Path.of("examples/portadoras/cover1.bmp"));
+        byte[] cover = Files.readAllBytes(Path.of("examples/portadoras/c1.bmp"));
         byte[] coverHeader = Arrays.copyOfRange(cover, 0, HEADER_SIZE_AND_PALETTE);
 
 

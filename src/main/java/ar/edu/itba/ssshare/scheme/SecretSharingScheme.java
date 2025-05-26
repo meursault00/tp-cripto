@@ -31,13 +31,12 @@ public final class SecretSharingScheme {
         if (shadows.size() < k)
             throw new IllegalArgumentException("Se necesitan al menos k sombras");
 
-        int blocks = shadows.get(0).length;  // number of secret blocks
-        byte[] secret = new byte[blocks * k]; // full secret is blocks * k bytes
+        int blocks = shadows.get(0).length;
+        byte[] secret = new byte[blocks * k];
 
-        // xs = indices of shadows (assuming x = 1 to 8)
         int[] xs = new int[k];
         for (int i = 0; i < k; i++) {
-            xs[i] = i + 1;
+            xs[i] = i + 1; // x-values: 1, 2, 3, ...
         }
 
         for (int b = 0; b < blocks; b++) {
@@ -46,14 +45,17 @@ public final class SecretSharingScheme {
                 ys[i] = Byte.toUnsignedInt(shadows.get(i)[b]);
             }
 
-            // Recover the original k coefficients from the polynomial
-            for (int j = 0; j < k; j++) {
-                int[] shiftedYs = new int[k];
-                for (int m = 0; m < k; m++) {
-                    shiftedYs[m] = (ys[m] * pow(xs[m], j)) % Polynomial.P;
+            // Versión encajada: P(x) = ((s_k x + s_{k-1}) x + ...) + s_1
+            for (int coeffIndex = 0; coeffIndex < k; coeffIndex++) {
+                // Interpolar en x = 0
+                int coeff = Lagrange.interpolateAtZero(xs, ys);
+                secret[b * k + coeffIndex] = (byte) coeff;
+
+                // Calcular nuevos ys para la siguiente iteración
+                for (int i = 0; i < k; i++) {
+                    int numerator = Lagrange.mod(ys[i] - coeff);
+                    ys[i] = Lagrange.mod(numerator * Lagrange.modInverse(xs[i]));
                 }
-                int coeff = Lagrange.interpolateAtZero(xs, shiftedYs);
-                secret[b * k + j] = (byte) coeff;
             }
         }
 
@@ -61,15 +63,6 @@ public final class SecretSharingScheme {
     }
 
 
-    private static int pow(int base, int exp) {
-        long res = 1;
-        long b = base % Polynomial.P;
-        while (exp > 0) {
-            if ((exp & 1) == 1) res = (res * b) % Polynomial.P;
-            b = (b * b) % Polynomial.P;
-            exp >>= 1;
-        }
-        return (int) res;
-    }
+
 
 }

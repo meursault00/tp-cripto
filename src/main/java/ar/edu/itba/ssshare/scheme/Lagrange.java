@@ -1,40 +1,36 @@
 package ar.edu.itba.ssshare.scheme;
 
-public final class Lagrange {
-    private static final int P = Polynomial.P;
+import java.math.BigInteger;
+import java.util.*;
 
-    private Lagrange() {}
+public class Lagrange {
 
-    /** Devuelve f(0) usando k pares (xi, yi) mod P. k <= 10 en el TP. */
-    public static int interpolateAtZero(int[] xs, int[] ys) {
-        int k = xs.length;
+    static final int MOD =257;
+
+    static int modInverse(int a) {
+        return BigInteger.valueOf(a).modInverse(BigInteger.valueOf(MOD)).intValue();
+    }
+
+    static int mod(int a) {
+        a %= MOD;
+        return (a < 0) ? a + MOD : a;
+    }
+
+    static int interpolateAtZero(int[] x, int[] y) {
         int result = 0;
-        for (int i = 0; i < k; i++) {
-            long num = ys[i];
-            long denom = 1;
-            for (int j = 0; j < k; j++) {
-                if (i == j) continue;
-                num   = (num   * (-xs[j])) % P;   // (0 - xj)
-                denom = (denom * (xs[i] - xs[j])) % P;
+        for (int i = 0; i < x.length; i++) {
+            int numerator = 1;
+            int denominator = 1;
+            for (int j = 0; j < x.length; j++) {
+                if (i != j) {
+                    numerator = mod(numerator * -x[j]);
+                    denominator = mod(denominator * (x[i] - x[j]));
+                }
             }
-            result = (int)((result + num * modInv(denom)) % P);
+            int li0 = mod(numerator * modInverse(denominator));
+            result = mod(result + li0 * y[i]);
         }
-        return (result + P) % P;
+        return result;
     }
 
-    /** Inverso multiplicativo mod P (P es primo). */
-    private static int modInv(long a) {
-        return pow(a, P - 2);
-    }
-
-    private static int pow(long base, int exp) {
-        long res = 1;
-        long b   = base % P;
-        while (exp > 0) {
-            if ((exp & 1) == 1) res = (res * b) % P;
-            b = (b * b) % P;
-            exp >>= 1;
-        }
-        return (int) res;
-    }
 }

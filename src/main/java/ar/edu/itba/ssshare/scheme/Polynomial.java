@@ -2,7 +2,7 @@ package ar.edu.itba.ssshare.scheme;
 
 /** Evalúa polinomios mod 251. Sin optimizaciones aún. */
 public final class Polynomial {
-    public static final int P = 251;
+    public static final int P = 257;
 
     private final int[] coeff; // a0..ak  (k = coeff.length-1)
 
