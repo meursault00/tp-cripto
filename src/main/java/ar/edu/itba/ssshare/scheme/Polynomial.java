@@ -11,12 +11,15 @@ public final class Polynomial {
     }
 
     public int eval(int x) {
-        long sum = 0;
-        long power = 1;
+        long result = 0;
+        long powX = 1;
+
         for (int a : coeff) {
-            sum += a * power;
-            power = (power * x) % P;
+            result = (result + (a * powX) % P) % P;
+            powX = (powX * x) % P;
         }
-        return (int)(sum % P);
+
+        return (int) ((result + P) % P); // Asegura valor positivo
     }
+
 }

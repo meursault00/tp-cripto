@@ -112,8 +112,6 @@ public class Main {
 
         List<byte[]> shadows = SecretSharingScheme.createShadows(dataToHide, k, n);
 
-
-        int acum =0;
         for (int i = 0; i < n; i++) {
             Path carrierPath = Paths.get(dir, "c" + (i+1) + ".bmp");
             byte[] carrier = Files.readAllBytes(carrierPath);
@@ -125,7 +123,6 @@ public class Main {
 
             // Ocultar sombra en píxeles
             LSBEncoder.embed(pixels, shadows.get(i));
-            acum+=shadows.get(i).length;
             // Recombinar y guardar
             ByteArrayOutputStream out = new ByteArrayOutputStream();
             out.write(header);
@@ -135,7 +132,6 @@ public class Main {
             Files.write(outPath, out.toByteArray());
         }
 
-        System.out.println("total de pixeles de sombra" + acum);
 
         System.out.println("Sombras embebidas en imágenes guardadas en " + dir);
     }
@@ -155,6 +151,7 @@ public class Main {
             shadows.add(shadow);
         }
 
+
         // Usamos una cover cualquiera para obtener el header BMP (todas tienen el mismo)
         byte[] cover = Files.readAllBytes(Path.of("examples/portadoras/c1.bmp"));
         byte[] coverHeader = Arrays.copyOfRange(cover, 0, HEADER_SIZE_AND_PALETTE);
@@ -162,7 +159,6 @@ public class Main {
 
         // Recuperamos el secreto sin header
         byte[] secret = SecretSharingScheme.recoverSecret(shadows, k);
-        System.out.println(secret.length);
 
         // Le agregamos el header para que sea un BMP válido
         byte[] secretWithHeader = new byte[coverHeader.length + secret.length];
