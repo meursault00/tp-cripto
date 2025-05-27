@@ -30,7 +30,7 @@ public final class SecretSharingScheme {
                 Polynomial poly = new Polynomial(a);
                 for (int j = 0; j < n; j++) {
                     int y = poly.eval(j + 1);
-                    if (y == 256) {
+                    if (y == 256) { //NO QUIRO LOS 256 >:(
                         ok = false;
                         for (int t = 0; t < k; t++) {
                             if (a[t] != 0) {

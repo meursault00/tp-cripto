@@ -1,5 +1,6 @@
 package ar.edu.itba.ssshare;
 
+import ar.edu.itba.ssshare.scheme.PermutationUtil;
 import ar.edu.itba.ssshare.scheme.SecretSharingScheme;
 import ar.edu.itba.ssshare.stego.LSBDecoder;
 import ar.edu.itba.ssshare.stego.LSBEncoder;
@@ -105,69 +106,100 @@ public class Main {
     }
 
     public static void distribuir(String secretPath, int k, int n, String dir) throws IOException {
-
-        byte[] secretData = Files.readAllBytes(Paths.get(secretPath)); // por ahora todo el archivo
+        byte[] secretData = Files.readAllBytes(Paths.get(secretPath));
         byte[] dataToHide = Arrays.copyOfRange(secretData, HEADER_SIZE_AND_PALETTE, secretData.length);
 
+        // Generar semilla de 48 bits (hasta 2^48 - 1)
+        long seed = new Random().nextLong() & 0xFFFFFFFFFFFFL;
+        int[] permutation = PermutationUtil.generate(dataToHide.length, seed);
 
-        List<byte[]> shadows = SecretSharingScheme.createShadows(dataToHide, k, n);
+        // Aplicar permutación
+        byte[] permuted = new byte[dataToHide.length];
+        for (int i = 0; i < permutation.length; i++) {
+            permuted[i] = dataToHide[permutation[i]];
+        }
+        System.out.println(Arrays.toString(permutation));
+
+        List<byte[]> shadows = SecretSharingScheme.createShadows(permuted, k, n);
 
         for (int i = 0; i < n; i++) {
-            Path carrierPath = Paths.get(dir, "c" + (i+1) + ".bmp");
+            Path carrierPath = Paths.get(dir, "c" + (i + 1) + ".bmp");
             byte[] carrier = Files.readAllBytes(carrierPath);
 
-            // Separar header y píxeles
-
+            // Header y píxeles
             byte[] header = Arrays.copyOfRange(carrier, 0, HEADER_SIZE_AND_PALETTE);
             byte[] pixels = Arrays.copyOfRange(carrier, HEADER_SIZE_AND_PALETTE, carrier.length);
 
+            // Guardar semilla en bytes 6–7 (solo los 2 bytes menos significativos)
+            for (int j = 0; j < 6; j++) {
+                header[6 + j] = (byte) ((seed >> (8 * j)) & 0xFF);
+            }
+
+
+
             // Ocultar sombra en píxeles
             LSBEncoder.embed(pixels, shadows.get(i));
-            // Recombinar y guardar
+
+            // Recombinar
             ByteArrayOutputStream out = new ByteArrayOutputStream();
             out.write(header);
             out.write(pixels);
 
-            Path outPath = Paths.get(dir, "sombra" + (i+1) + ".bmp");
+            Path outPath = Paths.get(dir, "sombra" + (i + 1) + ".bmp");
             Files.write(outPath, out.toByteArray());
         }
 
-
-        System.out.println("Sombras embebidas en imágenes guardadas en " + dir);
+        System.out.println("Sombras embebidas con semilla " + seed + " en imágenes guardadas en " + dir);
     }
+
 
     public static void recuperar(String outputPath, int k, String dir) throws IOException {
         List<byte[]> shadows = new ArrayList<>();
+        long seed = 0;
 
         for (int i = 0; i < k; i++) {
             Path path = Paths.get(dir, "sombra" + (i + 1) + ".bmp");
             byte[] data = Files.readAllBytes(path);
 
-            byte[] pixels = Arrays.copyOfRange(data, HEADER_SIZE_AND_PALETTE, data.length);
+            for (int j = 0; j < 6; j++) {
+                seed |= ((long) Byte.toUnsignedInt(data[6 + j])) << (8 * j);
+            }
 
+            byte[] pixels = Arrays.copyOfRange(data, HEADER_SIZE_AND_PALETTE, data.length);
             int len = (data.length - HEADER_SIZE_AND_PALETTE) / 8;
             byte[] shadow = LSBDecoder.extract(pixels, len);
-
             shadows.add(shadow);
         }
 
+        System.out.println("RECOVERED seed " + seed);
 
-        // Usamos una cover cualquiera para obtener el header BMP (todas tienen el mismo)
-        byte[] cover = Files.readAllBytes(Path.of("examples/portadoras/c1.bmp"));
-        byte[] coverHeader = Arrays.copyOfRange(cover, 0, HEADER_SIZE_AND_PALETTE);
+        // Recuperar secreto permutado
+        byte[] permuted = SecretSharingScheme.recoverSecret(shadows, k);
+
+        // Deshacer permutación
+        int[] permutation = PermutationUtil.generate(permuted.length, seed);
+        int[] inverse = PermutationUtil.invert(permutation);
 
 
-        // Recuperamos el secreto sin header
-        byte[] secret = SecretSharingScheme.recoverSecret(shadows, k);
+        byte[] original = new byte[permuted.length];
 
-        // Le agregamos el header para que sea un BMP válido
-        byte[] secretWithHeader = new byte[coverHeader.length + secret.length];
-        System.arraycopy(coverHeader, 0, secretWithHeader, 0, coverHeader.length);
-        System.arraycopy(secret, 0, secretWithHeader, coverHeader.length , secret.length);
+        for (int i = 0; i < inverse.length; i++) {
+            original[i] = permuted[inverse[i]];
+        }
 
-        Files.write(Paths.get(outputPath), secretWithHeader);
+        // Obtener header base
+        byte[] cover = Files.readAllBytes(Path.of(dir, "c1.bmp"));
+        byte[] header = Arrays.copyOfRange(cover, 0, HEADER_SIZE_AND_PALETTE);
+
+        // Guardar imagen secreta reconstruida
+        byte[] result = new byte[header.length + original.length];
+        System.arraycopy(header, 0, result, 0, header.length);
+        System.arraycopy(original, 0, result, header.length, original.length);
+        Files.write(Paths.get(outputPath), result);
+
         System.out.println("Secreto reconstruido guardado en " + outputPath);
     }
+
 
 
 
