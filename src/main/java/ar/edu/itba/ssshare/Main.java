@@ -110,7 +110,8 @@ public class Main {
         byte[] dataToHide = Arrays.copyOfRange(secretData, HEADER_SIZE_AND_PALETTE, secretData.length);
 
         // Generar semilla de 48 bits (hasta 2^48 - 1)
-        long seed = new Random().nextLong() & 0xFFFFFFFFFFFFL;
+        Random rand = new Random();
+        int seed = rand.nextInt(1 << 16); // genera número entre 0 y 65535
         int[] permutation = PermutationUtil.generate(dataToHide.length, seed);
 
         // Aplicar permutación
@@ -118,7 +119,6 @@ public class Main {
         for (int i = 0; i < permutation.length; i++) {
             permuted[i] = dataToHide[permutation[i]];
         }
-        System.out.println(Arrays.toString(permutation));
 
         List<byte[]> shadows = SecretSharingScheme.createShadows(permuted, k, n);
 
@@ -131,10 +131,12 @@ public class Main {
             byte[] pixels = Arrays.copyOfRange(carrier, HEADER_SIZE_AND_PALETTE, carrier.length);
 
             // Guardar semilla en bytes 6–7 (solo los 2 bytes menos significativos)
-            for (int j = 0; j < 6; j++) {
-                header[6 + j] = (byte) ((seed >> (8 * j)) & 0xFF);
-            }
+            header[6] = (byte) (seed & 0xFF);
+            header[7] = (byte) ((seed >> 8) & 0xFF);
 
+            // Rellenar los 4 bytes altos con ceros
+            header[8] = 0;
+            header[9] = 0;
 
 
             // Ocultar sombra en píxeles
@@ -155,15 +157,15 @@ public class Main {
 
     public static void recuperar(String outputPath, int k, String dir) throws IOException {
         List<byte[]> shadows = new ArrayList<>();
-        long seed = 0;
-
+        int seed =0;
         for (int i = 0; i < k; i++) {
             Path path = Paths.get(dir, "sombra" + (i + 1) + ".bmp");
             byte[] data = Files.readAllBytes(path);
 
-            for (int j = 0; j < 6; j++) {
-                seed |= ((long) Byte.toUnsignedInt(data[6 + j])) << (8 * j);
-            }
+            int b0 = Byte.toUnsignedInt(data[6]);
+            int b1 = Byte.toUnsignedInt(data[7]);
+            seed = b0 | (b1 << 8);
+
 
             byte[] pixels = Arrays.copyOfRange(data, HEADER_SIZE_AND_PALETTE, data.length);
             int len = (data.length - HEADER_SIZE_AND_PALETTE) / 8;
