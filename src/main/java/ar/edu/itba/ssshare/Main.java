@@ -115,20 +115,33 @@ public class Main {
 
     public static void distribuir(String secretPath, int k, int n, String dir) throws IOException {
         byte[] secretData = Files.readAllBytes(Paths.get(secretPath));
+
         byte[] dataToHide = Arrays.copyOfRange(secretData, HEADER_SIZE_AND_PALETTE, secretData.length);
 
         // Generar semilla de 48 bits (hasta 2^48 - 1)
         Random rand = new Random();
         int seed = rand.nextInt(1 << 16); // genera número entre 0 y 65535
-        int[] permutation = PermutationUtil.generate(dataToHide.length, seed);
 
-        // Aplicar permutación
-        byte[] permuted = new byte[dataToHide.length];
-        for (int i = 0; i < permutation.length; i++) {
-            permuted[i] = dataToHide[permutation[i]];
+
+        PermutationUtil.xorWithRandomBits(dataToHide, seed);
+
+
+        List<byte[]> shadows = SecretSharingScheme.createShadows(dataToHide, k, n);
+
+
+        List<Integer> indices = new ArrayList<>();
+        for (int i = 0; i < shadows.size(); i++) {
+            indices.add(i);
         }
 
-        List<byte[]> shadows = SecretSharingScheme.createShadows(permuted, k, n);
+        Collections.shuffle(indices, new Random()); // usar `rand` si querés que dependa de la misma semilla
+
+        List<byte[]> shuffledShadows = new ArrayList<>();
+        for (int i = 0; i < shadows.size(); i++) {
+            shuffledShadows.add(shadows.get(indices.get(i)));
+        }
+
+
 
         for (int i = 0; i < n; i++) {
             Path carrierPath = Paths.get(dir, "c" + (i + 1) + "450.bmp");
@@ -144,13 +157,13 @@ public class Main {
 
 
             // Guardar orden en bytes 8–9(solo los 2 bytes menos significativos)
-            int orden = i;
+            int orden = indices.get(i) + 1;
             header[8] = (byte) (orden & 0xFF);
             header[9] = (byte) ((orden >> 8) & 0xFF);
 
 
             // Ocultar sombra en píxeles
-            LSBEncoder.embed(pixels, shadows.get(i));
+            LSBEncoder.embed(pixels, shuffledShadows.get(i));
 
             // Recombinar
             ByteArrayOutputStream out = new ByteArrayOutputStream();
@@ -175,16 +188,15 @@ public class Main {
             byte[] data = Files.readAllBytes(path);
 
             // Leer x_i desde bytes 8 y 9
+            seed = Byte.toUnsignedInt(data[6]) | (Byte.toUnsignedInt(data[7]) << 8);
             int order = Byte.toUnsignedInt(data[8]) | (Byte.toUnsignedInt(data[9]) << 8);
 
-            int b0 = Byte.toUnsignedInt(data[6]);
-            int b1 = Byte.toUnsignedInt(data[7]);
-            seed = b0 | (b1 << 8);
 
             int len = (data.length - HEADER_SIZE_AND_PALETTE) / 8;
 
             byte[] pixels = Arrays.copyOfRange(data, HEADER_SIZE_AND_PALETTE, data.length);
             byte[] shadow = LSBDecoder.extract(pixels, len);
+
             xValueMap.put(order, shadow);
         }
 
@@ -196,32 +208,25 @@ public class Main {
 
         List<byte[]> orderedShadows = new ArrayList<>(xValueMap.values());
 
+
         System.out.println("RECOVERED seed " + seed);
         System.out.println("RECOVERED orden " + Arrays.toString(new ArrayList<>(xValueMap.keySet()).toArray()));
 
         // Recuperar secreto permutado
-        byte[] permuted = SecretSharingScheme.recoverSecret(orderedShadows, k );
-
+        byte[] unShadowed = SecretSharingScheme.recoverSecret(orderedShadows, k );
 
         // Deshacer permutación
-        int[] permutation = PermutationUtil.generate(permuted.length, seed);
-        int[] inverse = PermutationUtil.invert(permutation);
+        PermutationUtil.xorWithRandomBits(unShadowed, seed);
 
-
-        byte[] original = new byte[permuted.length];
-
-        for (int i = 0; i < inverse.length; i++) {
-            original[i] = permuted[inverse[i]];
-        }
 
         // Obtener header base
         byte[] cover = Files.readAllBytes(Path.of(dir, "sombra1.bmp"));
         byte[] header = Arrays.copyOfRange(cover, 0, HEADER_SIZE_AND_PALETTE);
 
         // Guardar imagen secreta reconstruida
-        byte[] result = new byte[header.length + original.length];
+        byte[] result = new byte[header.length + unShadowed.length];
         System.arraycopy(header, 0, result, 0, header.length);
-        System.arraycopy(original, 0, result, header.length, original.length);
+        System.arraycopy(unShadowed, 0, result, header.length, unShadowed.length);
         Files.write(Paths.get(outputPath), result);
 
         System.out.println("Secreto reconstruido guardado en " + outputPath);

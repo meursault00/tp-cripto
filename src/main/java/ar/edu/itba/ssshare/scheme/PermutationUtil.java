@@ -25,4 +25,12 @@ public final class PermutationUtil {
         }
         return inv;
     }
+
+    /** XOR con bits pseudoaleatorios generados a partir de la semilla. */
+    public static void xorWithRandomBits(byte[] pixels, int seed) {
+        Random r = new Random(seed);
+        for (int i = 0; i < pixels.length; i++) {
+            pixels[i] ^= (byte) r.nextInt(256);
+        }
+    }
 }

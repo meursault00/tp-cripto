@@ -11,8 +11,6 @@ public final class SecretSharingScheme {
         if (k != 8) throw new UnsupportedOperationException("Solo k=8 por ahora");
 
         int blocks = permuted.length / k;
-        System.out.println("blocks: " + blocks);
-        System.out.println(permuted.length / k);
         List<byte[]> shadows = new ArrayList<>();
         for (int i = 0; i < n; i++) {
             shadows.add(new byte[blocks]);
