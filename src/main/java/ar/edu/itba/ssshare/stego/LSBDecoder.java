@@ -3,19 +3,23 @@ package ar.edu.itba.ssshare.stego;
 public final class LSBDecoder {
     private LSBDecoder() {}
 
-    /** Extrae 'len' bytes ocultos de 'pixels' usando 1 LSB por píxel. */
-    public static byte[] extract(byte[] pixels, int len) {
-        if (pixels.length < len * 8)
-            throw new IllegalArgumentException("No hay suficientes píxeles");
+    /** Extrae 'len' bytes ocultos de 'pixels' usando 1 LSB por píxel, respetando padding BMP. */
+    public static byte[] extract(byte[] pixels, int len, int width, int height) {
+        int rowSize = ((width + 3) / 4) * 4;
         byte[] out = new byte[len];
-        int p = 0;
-        for (int i = 0; i < len; i++) {
-            int v = 0;
-            for (int bit = 7; bit >= 0; bit--) {
-                v |= (pixels[p++] & 1) << bit;
+        int bitIndex = 0;
+
+        for (int row = 0; row < height && bitIndex < len * 8; row++) {
+            int rowStart = row * rowSize;
+            for (int col = 0; col < width && bitIndex < len * 8; col++) {
+                int byteIndex = rowStart + col;
+                int bit = pixels[byteIndex] & 1;
+                out[bitIndex / 8] |= (bit << (7 - (bitIndex % 8)));
+                bitIndex++;
             }
-            out[i] = (byte) v;
         }
+
         return out;
     }
+
 }

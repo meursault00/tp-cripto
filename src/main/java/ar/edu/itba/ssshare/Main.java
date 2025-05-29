@@ -105,6 +105,14 @@ public class Main {
             """);
     }
 
+    private static int readIntLE(byte[] header, int offset) {
+        return (header[offset] & 0xFF) |
+                ((header[offset + 1] & 0xFF) << 8) |
+                ((header[offset + 2] & 0xFF) << 16) |
+                ((header[offset + 3] & 0xFF) << 24);
+    }
+
+
     public static void distribuir(String secretPath, int k, int n, String dir) throws IOException {
         byte[] secretData = Files.readAllBytes(Paths.get(secretPath));
         byte[] dataToHide = Arrays.copyOfRange(secretData, HEADER_SIZE_AND_PALETTE, secretData.length);
@@ -134,13 +142,23 @@ public class Main {
             header[6] = (byte) (seed & 0xFF);
             header[7] = (byte) ((seed >> 8) & 0xFF);
 
-            // Rellenar los 4 bytes altos con ceros
-            header[8] = 0;
-            header[9] = 0;
 
+            // Guardar orden en bytes 8–9(solo los 2 bytes menos significativos)
+            int orden = i;
+            header[8] = (byte) (orden & 0xFF);
+            header[9] = (byte) ((orden >> 8) & 0xFF);
+
+
+            int width = readIntLE(header, 18);
+            int height = readIntLE(header, 22);
+            int rowSize = ((width + 3) / 4) * 4;
+            int totalPixelBytes = rowSize * height;
+
+            // Cuántos bytes podés extraer de esta sombra:
+            int len = totalPixelBytes / 8;
 
             // Ocultar sombra en píxeles
-            LSBEncoder.embed(pixels, shadows.get(i));
+            LSBEncoder.embed(pixels, shadows.get(i),width,height);
 
             // Recombinar
             ByteArrayOutputStream out = new ByteArrayOutputStream();
@@ -156,27 +174,47 @@ public class Main {
 
 
     public static void recuperar(String outputPath, int k, String dir) throws IOException {
-        List<byte[]> shadows = new ArrayList<>();
+
         int seed =0;
+        Map<Integer,byte[]> xValueMap =  new TreeMap<>();
+
         for (int i = 0; i < k; i++) {
             Path path = Paths.get(dir, "sombra" + (i + 1) + ".bmp");
             byte[] data = Files.readAllBytes(path);
+
+            // Leer x_i desde bytes 8 y 9
+            int order = Byte.toUnsignedInt(data[8]) | (Byte.toUnsignedInt(data[9]) << 8);
 
             int b0 = Byte.toUnsignedInt(data[6]);
             int b1 = Byte.toUnsignedInt(data[7]);
             seed = b0 | (b1 << 8);
 
+            // Leer dimensiones
+            int width = readIntLE(data, 18);
+            int height = readIntLE(data, 22);
+            int rowSize = ((width + 3) / 4) * 4;
+            int totalPixelBytes = rowSize * height;
+            int len = rowSize * height/8;
 
-            byte[] pixels = Arrays.copyOfRange(data, HEADER_SIZE_AND_PALETTE, data.length);
-            int len = (data.length - HEADER_SIZE_AND_PALETTE) / 8;
-            byte[] shadow = LSBDecoder.extract(pixels, len);
-            shadows.add(shadow);
+            byte[] pixels = Arrays.copyOfRange(data, HEADER_SIZE_AND_PALETTE, HEADER_SIZE_AND_PALETTE + totalPixelBytes);
+            byte[] shadow = LSBDecoder.extract(pixels, len, width, height);
+            xValueMap.put(order, shadow);
         }
 
+        System.out.println(xValueMap.size() );
+        if (xValueMap.size() < k) {
+            throw new IllegalStateException("Faltan sombras para reconstruir el secreto");
+        }
+
+
+        List<byte[]> orderedShadows = new ArrayList<>(xValueMap.values());
+
         System.out.println("RECOVERED seed " + seed);
+        System.out.println("RECOVERED orden " + Arrays.toString(new ArrayList<>(xValueMap.keySet()).toArray()));
 
         // Recuperar secreto permutado
-        byte[] permuted = SecretSharingScheme.recoverSecret(shadows, k);
+        byte[] permuted = SecretSharingScheme.recoverSecret(orderedShadows, k );
+
 
         // Deshacer permutación
         int[] permutation = PermutationUtil.generate(permuted.length, seed);
