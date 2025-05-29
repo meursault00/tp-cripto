@@ -171,7 +171,7 @@ public class Main {
         Map<Integer,byte[]> xValueMap =  new TreeMap<>();
 
         for (int i = 0; i < k; i++) {
-            Path path = Paths.get(dir, "c" + (i + 1) + ".bmp");
+            Path path = Paths.get(dir, "sombra" + (i + 1) + ".bmp");
             byte[] data = Files.readAllBytes(path);
 
             // Leer x_i desde bytes 8 y 9
@@ -215,7 +215,7 @@ public class Main {
         }
 
         // Obtener header base
-        byte[] cover = Files.readAllBytes(Path.of(dir, "c1.bmp"));
+        byte[] cover = Files.readAllBytes(Path.of(dir, "sombra1.bmp"));
         byte[] header = Arrays.copyOfRange(cover, 0, HEADER_SIZE_AND_PALETTE);
 
         // Guardar imagen secreta reconstruida
