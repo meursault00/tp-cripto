@@ -131,7 +131,7 @@ public class Main {
         List<byte[]> shadows = SecretSharingScheme.createShadows(permuted, k, n);
 
         for (int i = 0; i < n; i++) {
-            Path carrierPath = Paths.get(dir, "c" + (i + 1) + ".bmp");
+            Path carrierPath = Paths.get(dir, "c" + (i + 1) + "450.bmp");
             byte[] carrier = Files.readAllBytes(carrierPath);
 
             // Header y píxeles
@@ -149,16 +149,8 @@ public class Main {
             header[9] = (byte) ((orden >> 8) & 0xFF);
 
 
-            int width = readIntLE(header, 18);
-            int height = readIntLE(header, 22);
-            int rowSize = ((width + 3) / 4) * 4;
-            int totalPixelBytes = rowSize * height;
-
-            // Cuántos bytes podés extraer de esta sombra:
-            int len = totalPixelBytes / 8;
-
             // Ocultar sombra en píxeles
-            LSBEncoder.embed(pixels, shadows.get(i),width,height);
+            LSBEncoder.embed(pixels, shadows.get(i));
 
             // Recombinar
             ByteArrayOutputStream out = new ByteArrayOutputStream();
@@ -179,7 +171,7 @@ public class Main {
         Map<Integer,byte[]> xValueMap =  new TreeMap<>();
 
         for (int i = 0; i < k; i++) {
-            Path path = Paths.get(dir, "sombra" + (i + 1) + ".bmp");
+            Path path = Paths.get(dir, "c" + (i + 1) + ".bmp");
             byte[] data = Files.readAllBytes(path);
 
             // Leer x_i desde bytes 8 y 9
@@ -189,15 +181,10 @@ public class Main {
             int b1 = Byte.toUnsignedInt(data[7]);
             seed = b0 | (b1 << 8);
 
-            // Leer dimensiones
-            int width = readIntLE(data, 18);
-            int height = readIntLE(data, 22);
-            int rowSize = ((width + 3) / 4) * 4;
-            int totalPixelBytes = rowSize * height;
-            int len = rowSize * height/8;
+            int len = (data.length - HEADER_SIZE_AND_PALETTE) / 8;
 
-            byte[] pixels = Arrays.copyOfRange(data, HEADER_SIZE_AND_PALETTE, HEADER_SIZE_AND_PALETTE + totalPixelBytes);
-            byte[] shadow = LSBDecoder.extract(pixels, len, width, height);
+            byte[] pixels = Arrays.copyOfRange(data, HEADER_SIZE_AND_PALETTE, data.length);
+            byte[] shadow = LSBDecoder.extract(pixels, len);
             xValueMap.put(order, shadow);
         }
 
