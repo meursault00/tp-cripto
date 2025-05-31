@@ -1,6 +1,6 @@
 package ar.edu.itba.ssshare.scheme;
 
-/** Evalúa polinomios mod 251. Sin optimizaciones aún. */
+/** Evalúa polinomios mod 257. Sin optimizaciones aún. */
 public final class Polynomial {
     public static final int P = 257;
 

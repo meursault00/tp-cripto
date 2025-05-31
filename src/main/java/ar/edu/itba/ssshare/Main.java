@@ -11,6 +11,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
+import java.util.stream.IntStream;
 
 public class Main {
 
@@ -116,6 +117,7 @@ public class Main {
     public static void distribuir(String secretPath, int k, int n, String dir) throws IOException {
         byte[] secretData = Files.readAllBytes(Paths.get(secretPath));
 
+
         byte[] dataToHide = Arrays.copyOfRange(secretData, HEADER_SIZE_AND_PALETTE, secretData.length);
 
         // Generar semilla de 48 bits (hasta 2^48 - 1)
@@ -181,7 +183,7 @@ public class Main {
     public static void recuperar(String outputPath, int k, String dir) throws IOException {
 
         int seed =0;
-        Map<Integer,byte[]> xValueMap =  new TreeMap<>();
+        Map<Integer,byte[]> xValueMap =  new HashMap<>();
 
         for (int i = 0; i < k; i++) {
             Path path = Paths.get(dir, "sombra" + (i + 1) + ".bmp");
@@ -191,7 +193,6 @@ public class Main {
             seed = Byte.toUnsignedInt(data[6]) | (Byte.toUnsignedInt(data[7]) << 8);
             int order = Byte.toUnsignedInt(data[8]) | (Byte.toUnsignedInt(data[9]) << 8);
 
-
             int len = (data.length - HEADER_SIZE_AND_PALETTE) / 8;
 
             byte[] pixels = Arrays.copyOfRange(data, HEADER_SIZE_AND_PALETTE, data.length);
@@ -200,20 +201,23 @@ public class Main {
             xValueMap.put(order, shadow);
         }
 
-        System.out.println(xValueMap.size() );
         if (xValueMap.size() < k) {
             throw new IllegalStateException("Faltan sombras para reconstruir el secreto");
         }
 
-
         List<byte[]> orderedShadows = new ArrayList<>(xValueMap.values());
+        int[] orders = xValueMap.keySet()
+                .stream()
+                .mapToInt(Integer::intValue)
+                .toArray();
 
 
         System.out.println("RECOVERED seed " + seed);
         System.out.println("RECOVERED orden " + Arrays.toString(new ArrayList<>(xValueMap.keySet()).toArray()));
 
         // Recuperar secreto permutado
-        byte[] unShadowed = SecretSharingScheme.recoverSecret(orderedShadows, k );
+        byte[] unShadowed = SecretSharingScheme.recoverSecret(orderedShadows, orders);
+
 
         // Deshacer permutación
         PermutationUtil.xorWithRandomBits(unShadowed, seed);

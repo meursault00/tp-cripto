@@ -55,15 +55,14 @@ public final class SecretSharingScheme {
     }
 
 
-    public static byte[] recoverSecret(List<byte[]> shadows, int k) {
+    public static byte[] recoverSecret(List<byte[]> shadows, int[] xs ) {
+       int k = xs.length;
         if (shadows.size() < k)
             throw new IllegalArgumentException("Se necesitan al menos k sombras");
 
         int blocks = shadows.get(0).length;
         byte[] fullRecovered = new byte[blocks * k];
 
-        int[] xs = new int[k];
-        for (int i = 0; i < k; i++) xs[i] = i + 1;
 
         for (int b = 0; b < blocks; b++) {
             int[] ys = new int[k];
