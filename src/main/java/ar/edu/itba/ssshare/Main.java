@@ -59,10 +59,15 @@ public class Main {
         if (mode.equals("d")) {
             if (nStr != null)
                 System.out.println("n: " + n);
+            if(k>n){
+                System.err.println("Error: K debe ser menor o igual a n");
+                return;
+            }
         }
         System.out.println("Directorio: " + dir);
 
-        // TODO: llamar funciones
+
+
         if (mode.equals("d")) {
              distribuir(secret, k, n, dir); //-d -secret examples\secret\boca.bmp -k 8 -n 8 -dir examples\portadoras
         } else {
@@ -183,7 +188,7 @@ public class Main {
     public static void recuperar(String outputPath, int k, String dir) throws IOException {
 
         int seed =0;
-        Map<Integer,byte[]> xValueMap =  new HashMap<>();
+        Map<Integer,byte[]> xValueMap =  new TreeMap<>();
 
         for (int i = 0; i < k; i++) {
             Path path = Paths.get(dir, "sombra" + (i + 1) + ".bmp");
