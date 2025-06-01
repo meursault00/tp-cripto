@@ -7,7 +7,7 @@ for i in range(8, 9):
     img_gray_8bit = img_rgb.convert("L")
 
     # Redimensionar la imagen a 450x300
-    img_resized = img_gray_8bit.resize((450, 300), Image.LANCZOS)
+    img_resized = img_gray_8bit.resize((400, 250), Image.LANCZOS)
 
     # Guardar la imagen redimensionada
-    img_resized.save(f"./secret/boca450.bmp")
+    img_resized.save(f"./secret/boca250.bmp")
