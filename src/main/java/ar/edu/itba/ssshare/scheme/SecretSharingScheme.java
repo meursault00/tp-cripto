@@ -8,7 +8,7 @@ import java.util.List;
 public final class SecretSharingScheme {
 
     public static List<byte[]> createShadows(byte[] permuted, int k, int n) {
-        if (k != 8) throw new UnsupportedOperationException("Solo k=8 por ahora");
+        if (!(k >= 2 && k<=10)) throw new UnsupportedOperationException("Solo k entre 2 y 10 por ahora");
 
         int blocks = permuted.length / k;
         List<byte[]> shadows = new ArrayList<>();

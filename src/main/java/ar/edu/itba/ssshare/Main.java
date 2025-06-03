@@ -118,9 +118,23 @@ public class Main {
                 ((header[offset + 3] & 0xFF) << 24);
     }
 
+    private static void writeIntLE(byte[] data, int offset, int value) {
+        data[offset]     = (byte) (value & 0xFF);
+        data[offset + 1] = (byte) ((value >> 8) & 0xFF);
+        data[offset + 2] = (byte) ((value >> 16) & 0xFF);
+        data[offset + 3] = (byte) ((value >> 24) & 0xFF);
+    }
+
+
 
     public static void distribuir(String secretPath, int k, int n, String dir) throws IOException {
         byte[] secretData = Files.readAllBytes(Paths.get(secretPath));
+
+        int width =  readIntLE(secretData, 18);
+        int height= readIntLE(secretData, 22);
+
+
+        int startoffset =0;
 
 
         byte[] dataToHide = Arrays.copyOfRange(secretData, HEADER_SIZE_AND_PALETTE, secretData.length);
@@ -168,9 +182,23 @@ public class Main {
             header[8] = (byte) (orden & 0xFF);
             header[9] = (byte) ((orden >> 8) & 0xFF);
 
+            if (k != 8) {
+                byte[] dims = new byte[4];
+                dims[0] = (byte) (width & 0xFF);
+                dims[1] = (byte) ((width >> 8) & 0xFF);
+                dims[2] = (byte) (height & 0xFF);
+                dims[3] = (byte) ((height >> 8) & 0xFF);
+
+
+                LSBEncoder.embedHeaderLSB(pixels, dims); // oculta en los primeros 32 píxeles
+
+                startoffset =32;
+            }
+
 
             // Ocultar sombra en píxeles
-            LSBEncoder.embed(pixels, shuffledShadows.get(i));
+            // 32 píxeles usados para dimensiones → empezar en el 32
+            LSBEncoder.embed(pixels, shuffledShadows.get(i), startoffset);
 
             // Recombinar
             ByteArrayOutputStream out = new ByteArrayOutputStream();
@@ -189,6 +217,8 @@ public class Main {
 
         int seed =0;
         Map<Integer,byte[]> xValueMap =  new TreeMap<>();
+        int width = -1, height = -1;
+        int startPos =0;
 
         for (int i = 0; i < k; i++) {
             Path path = Paths.get(dir, "sombra" + (i + 1) + ".bmp");
@@ -198,10 +228,23 @@ public class Main {
             seed = Byte.toUnsignedInt(data[6]) | (Byte.toUnsignedInt(data[7]) << 8);
             int order = Byte.toUnsignedInt(data[8]) | (Byte.toUnsignedInt(data[9]) << 8);
 
-            int len = (data.length - HEADER_SIZE_AND_PALETTE) / 8;
+           // int len = (data.length - HEADER_SIZE_AND_PALETTE) / 8;
 
             byte[] pixels = Arrays.copyOfRange(data, HEADER_SIZE_AND_PALETTE, data.length);
-            byte[] shadow = LSBDecoder.extract(pixels, len);
+
+            if (i == 0 && k != 8) {
+                byte[] dims = LSBDecoder.extractHeaderLSB(pixels, 4);
+
+                width = Byte.toUnsignedInt(dims[0]) | (Byte.toUnsignedInt(dims[1]) << 8);
+                height = Byte.toUnsignedInt(dims[2]) | (Byte.toUnsignedInt(dims[3]) << 8);
+                startPos=32;
+
+                System.out.println("Dimensiones extraidas: " + width + "x" + height);
+            }
+
+            int availableBits = pixels.length - startPos; // 32 píxeles reservados para ancho y alto
+            int len = availableBits / 8;
+            byte[] shadow = LSBDecoder.extract(pixels, len,startPos);
 
             xValueMap.put(order, shadow);
         }
@@ -231,6 +274,12 @@ public class Main {
         // Obtener header base
         byte[] cover = Files.readAllBytes(Path.of(dir, "sombra1.bmp"));
         byte[] header = Arrays.copyOfRange(cover, 0, HEADER_SIZE_AND_PALETTE);
+
+        // Reescribir ancho y alto si fue embebido
+        if (k != 8 && width > 0 && height > 0) {
+            writeIntLE(header, 18, width);
+            writeIntLE(header, 22, height);
+        }
 
         // Guardar imagen secreta reconstruida
         byte[] result = new byte[header.length + unShadowed.length];
