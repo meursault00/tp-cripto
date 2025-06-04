@@ -162,10 +162,19 @@ public class Main {
             shuffledShadows.add(shadows.get(indices.get(i)));
         }
 
+        List<Path> bmpFiles = Files.list(Paths.get(dir))
+                .filter(p -> p.toString().toLowerCase().endsWith(".bmp"))
+                .sorted() // podés usar .sorted(Comparator.comparing(...)) si querés otro criterio
+                .limit(n)
+                .toList();
+
+        if (bmpFiles.size() < n) {
+            throw new IllegalStateException("No hay suficientes imágenes BMP en el directorio para generar " + n + " sombras.");
+        }
 
 
         for (int i = 0; i < n; i++) {
-            Path carrierPath = Paths.get(dir, "c" + (i + 1) + "450.bmp");
+            Path carrierPath = bmpFiles.get(i);
             byte[] carrier = Files.readAllBytes(carrierPath);
 
             // Header y píxeles
