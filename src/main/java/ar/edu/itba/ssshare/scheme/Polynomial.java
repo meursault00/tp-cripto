@@ -4,7 +4,7 @@ package ar.edu.itba.ssshare.scheme;
 public final class Polynomial {
     public static final int P = 257;
 
-    private final int[] coeff; // a0..ak  (k = coeff.length-1)
+    private final int[] coeff; // a0..ak
 
     public Polynomial(int[] coeff) {
         this.coeff = coeff;
@@ -19,7 +19,7 @@ public final class Polynomial {
             powX = (powX * x) % P;
         }
 
-        return (int) ((result + P) % P); // Asegura valor positivo
+        return (int) ((result + P) % P);
     }
 
 }

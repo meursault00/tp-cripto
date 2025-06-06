@@ -23,7 +23,6 @@ public final class SecretSharingScheme {
                 a[i] = Byte.toUnsignedInt(permuted[b * k + i]);
             }
 
-            // Repetimos hasta que ningún f(x) dé 256
             boolean ok;
             do {
                 ok = true;
@@ -38,15 +37,14 @@ public final class SecretSharingScheme {
                                 break;
                             }
                         }
-                        break; // salir del for y volver a verificar todos los j
+                        break;
                     }
                 }
             } while (!ok);
 
-            // Usamos los coeficientes ajustados para calcular cada sombra
             Polynomial poly = new Polynomial(a);
             for (int j = 0; j < n; j++) {
-                int y = poly.eval(j + 1); // garantizado ∈ [0,255]
+                int y = poly.eval(j + 1);
                 shadows.get(j)[b] = (byte) y;
             }
         }
@@ -81,7 +79,6 @@ public final class SecretSharingScheme {
             }
         }
 
-        // Return only original data, not padded
         return Arrays.copyOf(fullRecovered,fullRecovered.length);
     }
 

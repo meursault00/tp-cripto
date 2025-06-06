@@ -139,7 +139,7 @@ public class Main {
 
         byte[] dataToHide = Arrays.copyOfRange(secretData, HEADER_SIZE_AND_PALETTE, secretData.length);
 
-        // Generar semilla de 48 bits (hasta 2^48 - 1)
+
         Random rand = new Random();
         int seed = rand.nextInt(1 << 16); // genera número entre 0 y 65535
 
@@ -155,7 +155,7 @@ public class Main {
             indices.add(i);
         }
 
-        Collections.shuffle(indices, new Random()); // usar `rand` si querés que dependa de la misma semilla
+        Collections.shuffle(indices, new Random());
 
         List<byte[]> shuffledShadows = new ArrayList<>();
         for (int i = 0; i < shadows.size(); i++) {
@@ -164,7 +164,7 @@ public class Main {
 
         List<Path> bmpFiles = Files.list(Paths.get(dir))
                 .filter(p -> p.toString().toLowerCase().endsWith(".bmp"))
-                .sorted() // podés usar .sorted(Comparator.comparing(...)) si querés otro criterio
+                .sorted()
                 .limit(n)
                 .toList();
 
@@ -181,12 +181,12 @@ public class Main {
             byte[] header = Arrays.copyOfRange(carrier, 0, HEADER_SIZE_AND_PALETTE);
             byte[] pixels = Arrays.copyOfRange(carrier, HEADER_SIZE_AND_PALETTE, carrier.length);
 
-            // Guardar semilla en bytes 6–7 (solo los 2 bytes menos significativos)
+            // SEED en img
             header[6] = (byte) (seed & 0xFF);
             header[7] = (byte) ((seed >> 8) & 0xFF);
 
 
-            // Guardar orden en bytes 8–9(solo los 2 bytes menos significativos)
+            // Xi en IMG
             int orden = indices.get(i) + 1;
             header[8] = (byte) (orden & 0xFF);
             header[9] = (byte) ((orden >> 8) & 0xFF);
@@ -204,8 +204,6 @@ public class Main {
                 startoffset =32;
             }
 
-
-            // Ocultar sombra en píxeles
             // 32 píxeles usados para dimensiones → empezar en el 32
             LSBEncoder.embed(pixels, shuffledShadows.get(i), startoffset);
 
@@ -233,7 +231,7 @@ public class Main {
             Path path = Paths.get(dir, "sombra" + (i + 1) + ".bmp");
             byte[] data = Files.readAllBytes(path);
 
-            // Leer x_i desde bytes 8 y 9
+            // Leer x_i
             seed = Byte.toUnsignedInt(data[6]) | (Byte.toUnsignedInt(data[7]) << 8);
             int order = Byte.toUnsignedInt(data[8]) | (Byte.toUnsignedInt(data[9]) << 8);
 
@@ -272,15 +270,12 @@ public class Main {
         System.out.println("RECOVERED seed " + seed);
         System.out.println("RECOVERED orden " + Arrays.toString(new ArrayList<>(xValueMap.keySet()).toArray()));
 
-        // Recuperar secreto permutado
         byte[] unShadowed = SecretSharingScheme.recoverSecret(orderedShadows, orders);
-
 
         // Deshacer permutación
         PermutationUtil.xorWithRandomBits(unShadowed, seed);
 
 
-        // Obtener header base
         byte[] cover = Files.readAllBytes(Path.of(dir, "sombra1.bmp"));
         byte[] header = Arrays.copyOfRange(cover, 0, HEADER_SIZE_AND_PALETTE);
 
@@ -290,7 +285,7 @@ public class Main {
             writeIntLE(header, 22, height);
         }
 
-        // Guardar imagen secreta reconstruida
+        // Guardar imagen
         byte[] result = new byte[header.length + unShadowed.length];
         System.arraycopy(header, 0, result, 0, header.length);
         System.arraycopy(unShadowed, 0, result, header.length, unShadowed.length);
