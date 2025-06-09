@@ -27,12 +27,12 @@ El objetivo es permitir:
 
 ### Ejemplo de Distribución
 ```bash
-./gradlew run --args="-d -secret examples/secret/boca.bmp -k 8 -n 8 -dir examples/portadoras"
+./gradlew run --args="-d -secret examples/secret/boca.bmp -k 8 -n 8 -dir examples/portadoras/300x300"
 ```
 
 ### Ejemplo de Recuperación
 ```bash
-./gradlew run --args="-r -secret examples/secret/recuperada.bmp -k 8 -dir examples/portadoras"
+./gradlew run --args="-r -secret examples/secret/recuperada.bmp -k 8 -dir examples/portadoras/300x300"
 ```
 
 ### Consideraciones importantes
